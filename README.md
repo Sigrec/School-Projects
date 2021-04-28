@@ -1,2 +1,2 @@
 # School-Projects
-Project I have done as part of my undergraduate degree
+Projects I have done as part of my Computer Engineering undergraduate degree
