@@ -116,7 +116,7 @@ int FIFOReplacementAlgo(int &wss, int data[]){
 int ClockReplacementAlgo(int wss, int data[]){
     std::deque<int> process(wss);                                   
     int flagCache[wss] = { };                                             // Creates an array to track the use bit of each frame. 
-    int numOfFaults = 0;
+    int pageFaultCount = 0;
 
     int pointer = 0;                                                      // Used as the pointer for the "circular buffer"
     bool flag = false;  
@@ -142,7 +142,7 @@ int ClockReplacementAlgo(int wss, int data[]){
                 {                         
                     process.erase(process.begin() + pointer);             // Removes the current memory page in the frame pointed to
                     process.insert(process.begin() + pointer, data[x]);   // Inserts a new memory page into the frame in the pointed spot
-                    numOfFaults++;                                       
+                    pageFaultCount++;                                       
                     flagCache[pointer] = 1;                               // Sets flag of the memory page to 1, indicating it's been visited
 
                     if(pointer == wss -1 )                                // Checks if the pointer is at the end of the wss index
@@ -168,7 +168,7 @@ int ClockReplacementAlgo(int wss, int data[]){
             }
         }
     }
-    return numOfFaults - wss;                                              //Returns number of page faults that occured after the frame is fully allocated
+    return pageFaultCount - wss;                                              //Returns number of page faults that occured after the frame is fully allocated
 }
 
 
