@@ -3,7 +3,7 @@
  * Author: Sean Njenga
  * UTDid: sin170000
  * Section: CE 4348.501
- * Modified on: 11 November 2021
+ * Modified on: 14 November 2021
  *  by: Sean Njenga
  * 
  * Procedures:
@@ -17,6 +17,7 @@
 #include <random>
 #include <deque>
 #include <algorithm>
+#include <cmath>
 
 const int MU = 10;                    // Mean value for the normal distribution
 const int SIGMA = 2;                  // Standard deviation value for the normal distribution
@@ -25,14 +26,15 @@ const int MAX_WORKING_SET_SIZE = 20;  // The maximum working set size or maximum
 const int TOTAL_MEMORY_PAGES = 1000;  // The total number of random memory page values to generate
 const int NUM_EXPERIMENTS = 1000;     // The total number of experiments to run
 
+
 /********************************************************************************************************************************************
  * int LRUReplacementAlgo(int &wss, int data[])
  * Author: Sean Njenga
- * Modified on: 10 November 2021
+ * Modified on: 14 November 2021
  *  by: Sean Njenga
- * Description: Performs the LRU page replacement algorithm on the provided dataset. Where if a new memory page needs to be allocated in the
- *              existing frame, it removes the memory page that has not been the most used recently in the frame with the newest memory page 
- *              at the end of the queue. Signaling that the newest page is the most recently used memory page
+ * Description: Performs the LRU page replacement algorithm on the provided dataset. Where if a new memory page needs to be allocated in the existing frame, it 
+ *              removes the memory page that has not been the most used recently in the frame with the newest memory page at the end of the 
+ *              queue. Signaling that the newest page is the most recently used memory page
  * Parameters: 
  *      LRUReplacementAlgo      O/P     int     Returns the total number of page faults caused by the LRU algorithm givin the frame size
  *      wss                     I/P     int     The current working set size or frame size to store pages
@@ -40,33 +42,55 @@ const int NUM_EXPERIMENTS = 1000;     // The total number of experiments to run
  ********************************************************************************************************************************************/
 int LRUReplacementAlgo(int &wss, int data[]){
     int pageFaultCount = 0;
-    std::deque<int> process(wss);                       // Holds the current # of pages or processes in the frame
+    std::vector<int> process(wss, 0);                           // The frane containing the memory pages
+    std::vector<int> timeSpentInFrame(wss, 1);                  // Contains how long each memory page in frame has been in the frame
+    int mostTimeSpentInFramePage = 0;                           // The memory page that has been in the frame the longest
+    int mostTimeSpentInFrame = 1;                               // The current time the least recently used memory page has been in frame
+    bool replacePage;                                           // Determines whether a memory page in frame needs to be replaced
 
-    for (int x = 0; x < TOTAL_MEMORY_PAGES; x++)
+    for (int x = 0; x < TOTAL_MEMORY_PAGES; x++)                
     {
-        auto search = std::find(process.begin(), process.end(), data[x]);
-        if (search != process.end())                    // Frame already contains the given page (hit)
-        { 
-            int index = search - process.begin();       // The index of the found or pre-exisinting memory page in the deque
-            if(index == wss - 1) { continue; }          // When a duplicate value is added to the frame before it's full and it's the msot recently visited memory page
-
-            if (x < wss)                                // The frame isn't full but it already contains the memory page
-            { 
-                process[index] = process[index + 1];    // Swap the already visited page with most recent visited memory page
-                process[index + 1] = data[x];           // Swap the visited page with the previous most recent visited memory page
-            } 
-            else                                        // Base scenario of the page already being in the frame
-            {                                    
-                process.erase(search);                  // Remove the found page from the frame
-                process.push_back(data[x]);             // Push the found page to the back of the deque, since it's the most recent visited memory page
+        replacePage = true;
+        for (int y = 0; y < wss; y++)                           // Compare the current memory page to every existing memory page in frame
+        {
+            if (data[x] == process[y])                          // If the page is already in the frame decrease time spent by 1 and break out of while so it can go to next value (hit)
+            {
+                timeSpentInFrame[y] -= 1;                       // Decrease the amount of time the memory page has been in frame
+                replacePage = false;                            // No value needs to be replaced
+                continue;
             }
-        } else {                                        // Frame does not contain page (fault) 
-            pageFaultCount++;
-            process.pop_front();                        // Remove first element in frame since it's the oldest page in the frame
-            process.push_back(data[x]);                 // Push the new page into the back of the deque, since it's the most recent visited memory page
+            else if (process[y] == 0 && replacePage == true)    // Frame not fully allocated yet (hit)
+            {
+                process[y] = data[x];
+                replacePage = false;                            // Value already replaced
+                break;
+            }
+            
+            timeSpentInFrame[y] += 1;                           // Page isn't present in the frame and frame fully allocated so increase time memory page has spent in frame
+            
+            if (timeSpentInFrame[y] >= mostTimeSpentInFrame)    // Check to see if there is a new least recently used memory page
+            {
+                mostTimeSpentInFramePage = y;                   // The new frame page that we want to replace since it is the LRU now
+                mostTimeSpentInFrame = timeSpentInFrame[y];     // The new highest amount of time a memory page has been in the frame
+            }
         }
+
+        if (replacePage == true)                                // The page is not present in the frame so it needs to be replaced (fault)
+        {
+            pageFaultCount++;
+            process[mostTimeSpentInFramePage] = data[x];        // Replaced the LRU memory page with the new memory page
+            timeSpentInFrame[mostTimeSpentInFramePage] = 1;     // Set the new memory page's time spent in frame to 1
+            mostTimeSpentInFrame = 1;                           // Reset the value to check for next LRU since the previous LRU is now gone
+        }
+
+        /*std::cout << "[";
+        for (int x = 0; x < wss; x++){                          // Print arrays to better visualize if the algorithm works
+            std::cout << process[x];
+            (x != wss - 1) ? (std::cout << ",") : (std::cout << "]\n");
+        }*/
     }
-    return pageFaultCount - wss;                        //Returns number of page faults that occured after the frame is fully allocated
+
+    return pageFaultCount;
 }
 
 
@@ -115,7 +139,7 @@ int FIFOReplacementAlgo(int &wss, int data[]){
  ********************************************************************************************************************************************/
 int ClockReplacementAlgo(int wss, int data[]){
     std::deque<int> process(wss);                                   
-    int flagCache[wss] = { };                                             // Creates an array to track the use bit of each frame. 
+    std::vector<int> flagCache(wss, 0);                                   // Creates an array to track the use bit of each frame. 
     int pageFaultCount = 0;
 
     int pointer = 0;                                                      // Used as the pointer for the "circular buffer"
@@ -210,7 +234,7 @@ int main(){
         }
     }
 
-    std::cout << "LRU Replacement Algo Sim" << std::endl;
+    std::cout << "LRU Replacement Algo Sim Using Queue" << std::endl;
     for (int wss = MIN_WORKING_SET_SIZE; wss <= MAX_WORKING_SET_SIZE; wss++)                // Print the average page fault count for the LRU page replacement algorthim after the monte carlo sim for each working set size in range [4,20]
     {
         std::cout << "Working Set Size (" << wss << ") -> PFC = " << lruResults[wss - MIN_WORKING_SET_SIZE] / TOTAL_MEMORY_PAGES << std::endl;
